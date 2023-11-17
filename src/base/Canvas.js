@@ -13,12 +13,15 @@ export class Canvas
 {
     static fullClickedCanvas = null;
 
-    constructor(id)
+    constructor(id, initWGPU = false)
     {
+        this.wGPU = initWGPU;
         this.id = id;
         this.container = document.getElementById("canvasContainer" + id);
         this.body = document.getElementById("myCanvas" + id);
-	    this.gl = this.body.getContext("webgl", { antialias: true });
+
+        if (!initWGPU)
+	        this.gl = this.body.getContext("webgl", { antialias: true });
 
         this.camera = new Camera2D(this);
 
@@ -41,7 +44,9 @@ export class Canvas
         this.setSize();
 
         this.initialCanvasSizes = [this.body.getAttribute("width"), this.body.getAttribute("height")];
-        this.gl.viewport(0, 0, this.body.getAttribute("width"), this.body.getAttribute("height"));
+        
+        if (!initWGPU)
+            this.gl.viewport(0, 0, this.body.getAttribute("width"), this.body.getAttribute("height"));
 
         this.prButton.addEventListener("click", () => 
         {
@@ -76,6 +81,37 @@ export class Canvas
         });
     }
 
+    async initWebGPU()
+    {
+        if (!navigator.gpu)
+        {
+            alert("WebGPU is not supported on this device.");
+            return;
+        }
+        this.adapter = await navigator.gpu.requestAdapter();
+        
+        if (!this.adapter)
+        {
+            alert("No appropriate GPUAdapter found.");
+            return;
+        }
+
+        this.device = await this.adapter.requestDevice();
+
+        if (!this.device)
+        {
+            alert("Device request error.");
+            return;
+        }
+
+        this.context = this.body.getContext("webgpu");
+        this.canvasFormat = navigator.gpu.getPreferredCanvasFormat();
+        this.context.configure({
+            device: this.device,
+            format: this.canvasFormat,
+        });
+    }
+    
     waitLoop()
     {
         this.lastTime = this.currentTime.getTime();
@@ -84,7 +120,10 @@ export class Canvas
 
         if (this.prCurrentPath != 1)
         {
-            requestAnimationFrame(() => this.go());
+            if (this.wGPU)
+                requestAnimationFrame(() => this.goGPU());
+            else
+                requestAnimationFrame(() => this.goGL());
         }
         else
         {
@@ -92,7 +131,42 @@ export class Canvas
         }
     }
 
-    go()
+    goGPU()
+    {
+        if (this.prCurrentPath == 1)
+        {
+            this.lastTime = this.currentTime.getTime();
+            requestAnimationFrame(() => this.waitLoop());
+            return;
+        }
+
+        this.elapsedTime += this.currentTime.getTime() - this.lastTime;
+        this.lastTime = this.currentTime.getTime();
+
+        const encoder = this.device.createCommandEncoder();
+        const pass = encoder.beginRenderPass({
+            colorAttachments: [{
+                view: this.context.getCurrentTexture().createView(),
+                loadOp: "clear",
+                storeOp: "store",
+            }]
+        });
+        
+        this.currentTime = new Date();
+
+        this.renderObjects.forEach(obj =>
+        {
+            obj.draw(this.elapsedTime, pass);
+        });
+
+        pass.end();
+        const commandBuffer = encoder.finish();
+        this.device.queue.submit([commandBuffer]);
+
+        requestAnimationFrame(() => this.goGPU());
+    }
+
+    goGL()
     {
         if (this.prCurrentPath == 1)
         {
@@ -113,7 +187,7 @@ export class Canvas
             obj.draw(this.elapsedTime);
         });
 
-        requestAnimationFrame(() => this.go());
+        requestAnimationFrame(() => this.goGL());
     }
 
     setSize()
@@ -130,7 +204,6 @@ export class Canvas
     {
         document.addEventListener('fullscreenchange', (event) =>
         {
-            console.log(window.screen.width, window.devicePixelRatio);
             if (Canvas.fullClickedCanvas == null)
             {
                 return;
@@ -142,7 +215,8 @@ export class Canvas
                 Canvas.fullClickedCanvas.body.setAttribute('height', window.screen.height * window.devicePixelRatio);
                 Canvas.fullClickedCanvas.body.width = window.screen.width * window.devicePixelRatio;
                 Canvas.fullClickedCanvas.body.height = window.screen.height * window.devicePixelRatio;
-                Canvas.fullClickedCanvas.gl.viewport(0, 0, window.screen.width * window.devicePixelRatio, window.screen.height * window.devicePixelRatio);
+                if (!Canvas.fullClickedCanvas.wGPU)
+                    Canvas.fullClickedCanvas.gl.viewport(0, 0, window.screen.width * window.devicePixelRatio, window.screen.height * window.devicePixelRatio);
                 Canvas.fullClickedCanvas.container.style.width = "100%";
                 Canvas.fullClickedCanvas.body.style.width = "100%";
                 Canvas.fullClickedCanvas.prButton.style.right = "1%";
@@ -160,8 +234,8 @@ export class Canvas
 
                 Canvas.fullClickedCanvas.body.width = Canvas.fullClickedCanvas.initialCanvasSizes[0];
                 Canvas.fullClickedCanvas.body.height = Canvas.fullClickedCanvas.initialCanvasSizes[1];
-                Canvas.fullClickedCanvas.gl.viewport(0, 0,
-                    Canvas.fullClickedCanvas.initialCanvasSizes[0], Canvas.fullClickedCanvas.initialCanvasSizes[1]);
+                if (!Canvas.fullClickedCanvas.wGPU)
+                    Canvas.fullClickedCanvas.gl.viewport(0, 0, Canvas.fullClickedCanvas.initialCanvasSizes[0], Canvas.fullClickedCanvas.initialCanvasSizes[1]);
 
                 Canvas.fullClickedCanvas.fmCurrentPath = 0;
             }

@@ -20,5 +20,5 @@ function main()
 
 	canvas.renderObjects.push(spline);
 
-	canvas.go();
+	canvas.goGL();
 }
