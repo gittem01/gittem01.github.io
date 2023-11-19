@@ -23,8 +23,6 @@ export class Canvas
         if (!initWGPU)
 	        this.gl = this.body.getContext("webgl", { antialias: true });
 
-        this.camera = new Camera2D(this);
-
         this.prCurrentPath = 0;
         this.prButton = document.getElementById("resumePauseButton" + id);
         this.prPath = document.getElementById("resumePausePath" + id);
@@ -33,7 +31,7 @@ export class Canvas
         this.fmButton = document.getElementById("canvasSizeToggle" + id);
         this.fmPath = document.getElementById("canvasSizePath" + id);
 
-        this.mousePos = new Array(2);
+        this.mousePos = new Float32Array(2);
 
         this.currentTime = new Date();
         this.renderObjects = [];
@@ -44,7 +42,11 @@ export class Canvas
         this.setSize();
 
         this.initialCanvasSizes = [this.body.getAttribute("width"), this.body.getAttribute("height")];
-        
+        this.canvasWidth = this.body.getAttribute("width");
+        this.canvasHeight = this.body.getAttribute("height");
+
+        this.camera = new Camera2D(this);
+
         if (!initWGPU)
             this.gl.viewport(0, 0, this.body.getAttribute("width"), this.body.getAttribute("height"));
 
@@ -154,6 +156,7 @@ export class Canvas
         
         this.currentTime = new Date();
 
+        this.camera.updateOrtho();
         this.renderObjects.forEach(obj =>
         {
             obj.draw(this.elapsedTime, pass);
@@ -162,6 +165,9 @@ export class Canvas
         pass.end();
         const commandBuffer = encoder.finish();
         this.device.queue.submit([commandBuffer]);
+
+        this.canvasWidth = this.body.getAttribute("width");
+        this.canvasHeight = this.body.getAttribute("height");
 
         requestAnimationFrame(() => this.goGPU());
     }
@@ -181,12 +187,15 @@ export class Canvas
         this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 
         this.currentTime = new Date();
-
+        this.camera.updateOrtho();
         this.renderObjects.forEach(obj =>
         {
             obj.draw(this.elapsedTime);
         });
 
+        this.canvasWidth = this.body.getAttribute("width");
+        this.canvasHeight = this.body.getAttribute("height");
+        
         requestAnimationFrame(() => this.goGL());
     }
 

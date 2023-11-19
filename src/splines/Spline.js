@@ -1,4 +1,4 @@
-import { Shader } from "../base//Shader.js";
+import { Shader } from "../base/Shader.js";
 
 
 export class Spline
