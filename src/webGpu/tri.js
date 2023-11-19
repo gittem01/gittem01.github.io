@@ -1,15 +1,14 @@
 import * as glm from "../../external/glm/index.js";
+import { lookAtMatrix } from "../base/mxm.js";
 
 const vertices = new Float32Array([
 	-0.5, -0.5,
-	0.5, -0.5,
-	-0.5,  0.5,
-    -0.5, 0.5,
-	0.5, 0.5,
-	0.5,  -0.5,
+	+0.5, -0.5,
+	-0.5, +0.5,
+    -0.5, +0.5,
+	+0.5, +0.5,
+	+0.5, -0.5,
 ]);
-
-const GRID_SIZE = 4;
 
 export class Tri
 {
@@ -33,8 +32,6 @@ export class Tri
         };
         
         var camMatrix = glm.mat4.create();
-        const width = canvas.body.getAttribute("width");
-        const height = canvas.body.getAttribute("height");
 
         camMatrix = canvas.camera.ortho;
 
@@ -45,35 +42,27 @@ export class Tri
         });
         canvas.device.queue.writeBuffer(this.uniformBuffer, 0, camMatrix.buffer);
 
-        var pos = new Float32Array([0, 0]);
-        this.uniformBuffer2 = canvas.device.createBuffer({
-            label: "square mover",
-            size: pos.byteLength,
-            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-        });
-        canvas.device.queue.writeBuffer(this.uniformBuffer2, 0, pos.buffer);
-
         const shaderModule = canvas.device.createShaderModule({
             label: 'Cell shader',
             code: `
-                @group(0) @binding(0) var<uniform> ortho: mat4x4<f32>;
-                @group(0) @binding(1) var<uniform> posOffset: vec2<f32>;
+                @group(0) @binding(0) var<uniform> view: mat4x4<f32>;
                 @vertex
                 fn vertexMain(@location(0) pos: vec2f) ->
                 @builtin(position) vec4f {
-                    var m = ortho;
-                    return ortho * vec4f(pos + posOffset, 0, 1);
+                    var cp = view * vec4f(pos, 0, 1);
+                    cp = 2 * (cp / cp.x);
+                    return vec4f(cp.y, cp.z, 0, 1);
                 }
-            
+
                 @fragment
                 fn fragmentMain() -> @location(0) vec4f {
-                    return vec4f(1, 0, 0, 1);
+                    return vec4f(0, 1, 1, 1);
                 }
             `
         });
 
         this.pipeline = canvas.device.createRenderPipeline({
-            label: "Cell pipeline",
+            label: "Pipeline",
             layout: "auto",
             vertex: {
                 module: shaderModule,
@@ -88,27 +77,19 @@ export class Tri
         });
 
         this.bindGroup = canvas.device.createBindGroup({
-            label: "Cell renderer bind group",
+            label: "Renderer bind group",
             layout: this.pipeline.getBindGroupLayout(0),
             entries: [{
               binding: 0,
               resource: { buffer: this.uniformBuffer }
-            },
-            {
-                binding: 1,
-                resource: { buffer: this.uniformBuffer2 }
             }],
           });          
     }
 
     draw(elpTime, pass)
     {
-        this.canvas.device.queue.writeBuffer(this.uniformBuffer, 0, this.canvas.camera.ortho);
-
-        var pos = new Float32Array([this.canvas.mousePos[0], -this.canvas.mousePos[1]]);
-        pos[0] -= this.canvas.canvasWidth / 2; pos[1] += this.canvas.canvasHeight / 2;
-        pos[0] *= 0.01; pos[1] *= 0.01;
-        this.canvas.device.queue.writeBuffer(this.uniformBuffer2, 0, pos);
+        const m = lookAtMatrix([Math.cos(elpTime / 1000) * 10, Math.cos(elpTime / 1000) * 10, Math.sin(elpTime / 1000) * 10], [0, 0, 0]);
+        this.canvas.device.queue.writeBuffer(this.uniformBuffer, 0, m);
 
         pass.setPipeline(this.pipeline);
         pass.setVertexBuffer(0, this.vertexBuffer);

@@ -23,8 +23,12 @@
         <div class="container">
         <h1 class="centered-heading">WebGPU</h1>
         <p class="text-coloring text-sizing">
-            &emsp;&emsp;Some nice testbed for WebGPU. Next things: Maybe make this a WebGPU shader playground with an editor in it. 
-            Do some stuff with storage buffers.
+            &emsp;&emsp;Some nice testbed for WebGPU. Next things: Maybe make this a WebGPU shader playground with an editor in it.
+        </p>
+        <p class="text-coloring text-sizing">
+            &emsp;&emsp;Square at the center and the camera is rotating around the center. Camera's lookdir is it's
+            x vector, x vector of view coordinate system is result-y and y vector of the view coordinate is result-z.
+            Perspective calculation is done seperately inside the vertex shader. Fragment shader just gives colour no extra computation.
         </p>
 
         <div class="canvas-container" id="canvasContainer1">
