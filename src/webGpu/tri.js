@@ -42,16 +42,24 @@ export class Tri
         });
         canvas.device.queue.writeBuffer(this.uniformBuffer, 0, camMatrix.buffer);
 
+        this.uniformBuffer2 = canvas.device.createBuffer({
+            label: "Screen ratio",
+            size: 4,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+        });
+        canvas.device.queue.writeBuffer(this.uniformBuffer2, 0, new Float32Array([4]));
+
         const shaderModule = canvas.device.createShaderModule({
             label: 'Cell shader',
             code: `
                 @group(0) @binding(0) var<uniform> view: mat4x4<f32>;
+                @group(0) @binding(1) var<uniform> screenRatio: f32;
                 @vertex
                 fn vertexMain(@location(0) pos: vec2f) ->
                 @builtin(position) vec4f {
                     var cp = view * vec4f(pos, 0, 1);
                     cp = 2 * (cp / cp.x);
-                    return vec4f(cp.y, cp.z, 0, 1);
+                    return vec4f(cp.y, cp.z * screenRatio, 0, 1);
                 }
 
                 @fragment
@@ -79,9 +87,14 @@ export class Tri
         this.bindGroup = canvas.device.createBindGroup({
             label: "Renderer bind group",
             layout: this.pipeline.getBindGroupLayout(0),
-            entries: [{
+            entries: [
+            {
               binding: 0,
               resource: { buffer: this.uniformBuffer }
+            },
+            {
+                binding: 1,
+                resource: { buffer: this.uniformBuffer2 }
             }],
           });          
     }
@@ -90,6 +103,8 @@ export class Tri
     {
         const m = lookAtMatrix([Math.cos(elpTime / 1000) * 10, Math.cos(elpTime / 1000) * 10, Math.sin(elpTime / 1000) * 10], [0, 0, 0]);
         this.canvas.device.queue.writeBuffer(this.uniformBuffer, 0, m);
+        
+        this.canvas.device.queue.writeBuffer(this.uniformBuffer2, 0, new Float32Array([this.canvas.canvasWidth / this.canvas.canvasHeight]));
 
         pass.setPipeline(this.pipeline);
         pass.setVertexBuffer(0, this.vertexBuffer);
