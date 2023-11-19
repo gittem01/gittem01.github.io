@@ -1,5 +1,5 @@
 .background-coloring {
-    background-color: rgb(16, 16, 32);
+    background-color: rgb(10, 10, 24);
 }
 
 .centered-heading {
@@ -8,11 +8,7 @@
 }
 
 .text-coloring {
-    color: #e7e7e7;
-}
-
-.text-sizing {
-    font-size: 21px;
+    color: #ffffff;
 }
 
 .resized-card-image {
@@ -21,7 +17,7 @@
 }
 
 .card-bg-coloring {
-    background-color: rgb(24, 24, 48);
+    background-color: rgb(16, 16, 32);
 }
 
 .pauseResumeBtn {
@@ -42,6 +38,12 @@
 
 .home-card {
     cursor: pointer;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+    transition: box-shadow 0.1s ease-in-out;
+}
+
+.home-card:hover {    
+    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.75);
 }
 
 canvas {

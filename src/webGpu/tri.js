@@ -23,7 +23,7 @@ export class Tri
         canvas.device.queue.writeBuffer(this.vertexBuffer, 0, vertices);
 
         const vertexBufferLayout = {
-            arrayStride: 8,
+            arrayStride: 8, // sizeof(vec2f)
             attributes: [{
                 format: "float32x2",
                 offset: 0,
