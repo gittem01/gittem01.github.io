@@ -8,7 +8,11 @@
 }
 
 .text-coloring {
-    color: #ffffff;
+    color: #cecdcd;
+}
+
+.text-sizing {
+    font-size: 21px;
 }
 
 .resized-card-image {
