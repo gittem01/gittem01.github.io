@@ -50,15 +50,16 @@ export class Tri
 
         this.uniformBuffer2 = canvas.device.createBuffer({
             label: "Screen ratio",
-            size: 4,
+            size: 4 * 4,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
         });
-        canvas.device.queue.writeBuffer(this.uniformBuffer2, 0, new Float32Array([4]));
+        canvas.device.queue.writeBuffer(this.uniformBuffer2, 0, new Float32Array([0, 0, 0, 0]));
 
         const shaderModule = canvas.device.createShaderModule({
             label: 'Shader',
             code: `
                 struct VertexInput {
+                    @builtin(instance_index) instance: u32,
                     @location(0) pos: vec2f,
                     @location(1) colour: vec3f,
                 };
@@ -69,12 +70,14 @@ export class Tri
                 };
 
                 @group(0) @binding(0) var<uniform> view: mat4x4<f32>;
-                @group(0) @binding(1) var<uniform> screenRatio: f32;
+                @group(0) @binding(1) var<uniform> data: vec4<f32>;
                 @vertex
                 fn vertexMain(input: VertexInput) -> VertexOutput {
-                    var cp = view * vec4f(input.pos, 0, 1);
-                    cp = vec4f(20 * (cp.yz / cp.x), cp.x / 100.0, 1.0f);
-                    cp.y *= screenRatio;
+                    var p = vec4f(input.pos + data.xy, 0, 1);
+                    p.x += f32(input.instance) * 2 - 1;
+                    var cp = view * p;
+                    cp = vec4f(4 * (cp.zy / cp.x), cp.x / 100.0, 1.0f);
+                    cp.y *= data.z;
                     
                     var out: VertexOutput;
 
@@ -121,19 +124,20 @@ export class Tri
                 binding: 1,
                 resource: { buffer: this.uniformBuffer2 }
             }],
-          });          
+        });        
     }
 
     draw(elpTime, pass)
     {
-        const m = lookAtMatrix([Math.cos(elpTime / 400) * 20, Math.cos(elpTime / 600) * 30, Math.sin(elpTime / 1000) * 30], [0, 0, 0]);
+        const m = lookAtMatrix([Math.cos(elpTime / 500) * 20, 10, Math.sin(elpTime / 500, 10) * 20], [0, 0, 0]);
         this.canvas.device.queue.writeBuffer(this.uniformBuffer, 0, m);
         
-        this.canvas.device.queue.writeBuffer(this.uniformBuffer2, 0, new Float32Array([this.canvas.canvasWidth / this.canvas.canvasHeight]));
-
         pass.setPipeline(this.pipeline);
         pass.setVertexBuffer(0, this.vertexBuffer);
         pass.setBindGroup(0, this.bindGroup);
-        pass.draw(vertices.length / 5);	
+
+        this.canvas.device.queue.writeBuffer(this.uniformBuffer2, 0,
+            new Float32Array([0, 0, this.canvas.canvasWidth / this.canvas.canvasHeight, 0]));
+        pass.draw(vertices.length / 5, 2);	
     }
 };
