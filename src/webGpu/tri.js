@@ -2,12 +2,12 @@ import * as glm from "../../external/glm/index.js";
 import { lookAtMatrix } from "../base/mxm.js";
 
 const vertices = new Float32Array([
-	-0.5, -0.5,
-	+0.5, -0.5,
-	-0.5, +0.5,
-    -0.5, +0.5,
-	+0.5, +0.5,
-	+0.5, -0.5,
+	-0.5, -0.5, 1.0, 1.0, 0.0,
+	+0.5, -0.5, 0.0, 1.0, 1.0,
+	-0.5, +0.5, 1.0, 0.0, 1.0,
+    -0.5, +0.5, 1.0, 0.0, 1.0,
+	+0.5, +0.5, 0.0, 1.0, 0.0,
+	+0.5, -0.5, 0.0, 1.0, 1.0,
 ]);
 
 export class Tri
@@ -23,11 +23,17 @@ export class Tri
         canvas.device.queue.writeBuffer(this.vertexBuffer, 0, vertices);
 
         const vertexBufferLayout = {
-            arrayStride: 8, // sizeof(vec2f)
-            attributes: [{
+            arrayStride: 20, // sizeof(vec2f)
+            attributes: [
+            {
                 format: "float32x2",
                 offset: 0,
                 shaderLocation: 0,
+            },
+            {
+                format: "float32x3",
+                offset: 8,
+                shaderLocation: 1,
             }],
         };
         
@@ -52,20 +58,38 @@ export class Tri
         const shaderModule = canvas.device.createShaderModule({
             label: 'Shader',
             code: `
+                struct VertexInput {
+                    @location(0) pos: vec2f,
+                    @location(1) colour: vec3f,
+                };
+              
+                struct VertexOutput {
+                    @builtin(position) pos: vec4f,
+                    @location(0) outColour: vec3f,
+                };
+
                 @group(0) @binding(0) var<uniform> view: mat4x4<f32>;
                 @group(0) @binding(1) var<uniform> screenRatio: f32;
                 @vertex
-                fn vertexMain(@location(0) pos: vec2f) ->
-                @builtin(position) vec4f {
-                    var cp = view * vec4f(pos, 0, 1);
-                    cp = vec4f(2 * (cp.yz / cp.x), cp.x / 100.0, 1.0f);
+                fn vertexMain(input: VertexInput) -> VertexOutput {
+                    var cp = view * vec4f(input.pos, 0, 1);
+                    cp = vec4f(20 * (cp.yz / cp.x), cp.x / 100.0, 1.0f);
                     cp.y *= screenRatio;
-                    return cp;
-                }
+                    
+                    var out: VertexOutput;
 
+                    out.pos = cp;
+                    out.outColour = input.colour;
+                    return out;
+                }
+                
+                struct FragInput {
+                    @location(0) colour: vec3f,
+                };
+                
                 @fragment
-                fn fragmentMain() -> @location(0) vec4f {
-                    return vec4f(0, 1, 1, 1);
+                fn fragmentMain(input: FragInput) -> @location(0) vec4f {
+                    return vec4f(input.colour, 1);
                 }
             `
         });
@@ -102,7 +126,7 @@ export class Tri
 
     draw(elpTime, pass)
     {
-        const m = lookAtMatrix([Math.cos(elpTime / 1000) * 10, Math.cos(elpTime / 1000) * 10, Math.sin(elpTime / 1000) * 10], [0, 0, 0]);
+        const m = lookAtMatrix([Math.cos(elpTime / 400) * 20, Math.cos(elpTime / 600) * 30, Math.sin(elpTime / 1000) * 30], [0, 0, 0]);
         this.canvas.device.queue.writeBuffer(this.uniformBuffer, 0, m);
         
         this.canvas.device.queue.writeBuffer(this.uniformBuffer2, 0, new Float32Array([this.canvas.canvasWidth / this.canvas.canvasHeight]));
@@ -110,6 +134,6 @@ export class Tri
         pass.setPipeline(this.pipeline);
         pass.setVertexBuffer(0, this.vertexBuffer);
         pass.setBindGroup(0, this.bindGroup);
-        pass.draw(vertices.length / 2);	
+        pass.draw(vertices.length / 5);	
     }
 };
