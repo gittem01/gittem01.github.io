@@ -50,7 +50,7 @@ export class Tri
         canvas.device.queue.writeBuffer(this.uniformBuffer2, 0, new Float32Array([4]));
 
         const shaderModule = canvas.device.createShaderModule({
-            label: 'Cell shader',
+            label: 'Shader',
             code: `
                 @group(0) @binding(0) var<uniform> view: mat4x4<f32>;
                 @group(0) @binding(1) var<uniform> screenRatio: f32;
@@ -58,8 +58,9 @@ export class Tri
                 fn vertexMain(@location(0) pos: vec2f) ->
                 @builtin(position) vec4f {
                     var cp = view * vec4f(pos, 0, 1);
-                    cp = 2 * (cp / cp.x);
-                    return vec4f(cp.y, cp.z * screenRatio, 0, 1);
+                    cp = vec4f(2 * (cp.yz / cp.x), cp.x / 100.0, 1.0f);
+                    cp.y *= screenRatio;
+                    return cp;
                 }
 
                 @fragment
@@ -89,8 +90,8 @@ export class Tri
             layout: this.pipeline.getBindGroupLayout(0),
             entries: [
             {
-              binding: 0,
-              resource: { buffer: this.uniformBuffer }
+                binding: 0,
+                resource: { buffer: this.uniformBuffer }
             },
             {
                 binding: 1,
